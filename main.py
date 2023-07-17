@@ -1,10 +1,10 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
-from config import db_url_object
+
 from database import Base, add_profile, check_profile
 from sqlalchemy import create_engine
-from config import  access_token, token_group
+from config import  access_token, token_group, db_url_object
 from bot import Vkinder
 
 class Vkinderinterface():
@@ -29,7 +29,23 @@ class Vkinderinterface():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 if event.text.lower() == 'привет':
                     self.params = self.vk_bot.get_users(event.user_id)
-                    self.message_send(event.user_id, f'Привет {self.params["name"]}')
+                    if self.params['city'] is None:
+                        self.message_send(
+                            event.user_id, f'Привет, {self.params["name"]}!\n'
+                                           f'Для продолжения  укажи свой город')
+                        event.to_me = self.params['city']
+                    elif self.params['age'] is None:
+                        self.message_send(
+                        event.user_id, f'Привет, {self.params["name"]}!\n'
+                        f'Укажите свой возраст')
+                        event.to_me = self.params['age']
+                    elif self.params['sex'] is None:
+                        self.message_send(
+                        event.user_id, f'Привет, {self.params["name"]}!\n'
+                        f'Укажите свой пол')
+                        event.to_me = self.params['sex']
+                    else:
+                        self.message_send(event.user_id, f'Привет {self.params["name"]}')
                 elif event.text.lower() == 'поиск':
                     self.message_send(
                         event.user_id, 'Начинаем поиск')
@@ -45,7 +61,7 @@ class Vkinderinterface():
                             self.params, self.offset)
                         tool = self.tools.pop()
 
-                        test_users = add_profile(engine)
+                        engine = create_engine(db_url_object)
                         num_users = 0
                         all_users = set()
 
@@ -68,7 +84,7 @@ class Vkinderinterface():
                             f'имя: {tool["name"]} ссылка: vk.com/{tool["id"]}',
                             attachment=photo_string
                         )
-                        add_profile(self.engine, event.user_id, tool['id'])
+                        add_profile(engine, event.user_id, tool['id'])
 
                 elif event.text.lower() == 'пока':
                     self.message_send(
