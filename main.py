@@ -6,7 +6,7 @@ from vk_api.utils import get_random_id
 from bot import Vkinder
 from config import access_token, token_group, db_url_object
 from database import Base, add_profile, check_profile
-
+from vk_api.exceptions import ApiError
 
 class Vkinderinterface():
     def __init__(self, token_group, access_token):
@@ -26,57 +26,46 @@ class Vkinderinterface():
                        )
 
     def data_age(self, user_id):
-        self.message_send(user_id, 'Введите возраст: ')
-        message, user_id = self.event_handler()
-        age_prof = str(message)
-        age_user = self.vk_bot.params['age']
-        for age_info in age_user:
-            if age_info['age'] == age_prof.title():
-                self.message_send(user_id, f'Поиск по возрасту {age_prof.title()} лет')
-                return age_prof.title()
+        if params['age'] is None:
+            self.message_send(user_id, 'Введите возраст: ')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    params['age'] = event.text.lower()
+                    return params['age']
 
     def data_sex(self, user_id):
-        self.message_send(user_id, 'Введите пол: ')
-        message, user_id = self.event_handler()
-        sex_prof = str(message)
-        sex_user = self.vk_bot.params['sex']
-        for sex_info in sex_user:
-            if sex_info['sex'] == sex_prof.title():
-                self.message_send(user_id, f'Поиск противоположного пола {sex_prof.title()}')
-                return sex_prof.title()
+        if params['sex'] is None:
+            self.message_send(user_id, 'Введите пол: ')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    params['sex'] = event.text.lower()
+                    return params['sex']
 
+    def city_name(self, city_id):
+        try:
+            name_city = self.vk.method('database.getCities',
+                                     {
+                                        'country_id': 1,
+                                        'q': f'{city_id}'
+                                     }
+                                     )
+            if len(name_city['items']) > 0:
+                return name_city['items'][0]
+        except ApiError as e:
+            print(f'error = {e}')
     def data_city(self, user_id):
-        self.message_send(user_id, 'Введите пол: ')
-        message, user_id = self.event_handler()
-        city_prof = str(message)
-        city_user = self.vk_bot.params['city']
-        for city_info in city_user:
-            if city_info['title'] == city_prof.title():
-                self.message_send(user_id, f'Поиск по введному названия города {sex_prof.title()}')
-                return city_prof.title()
+        if params['city'] is None:
+            self.message_send(user_id, 'Введите город: ')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    params['city'] = self.city_name(event.text.lower())[0]['id']
+                    return params['city']
 
     def event_handler(self):
         for event in self.longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                 if event.text.lower() == 'привет':
-                    self.params = self.vk_bot.get_users(event.user_id)
-                    if self.params['city'] is None:
-                        self.message_send(
-                            event.user_id, f'Привет, {self.params["name"]}!\n'
-                                           f'Для продолжения  укажи свой город')
-                        event.to_me = self.data_city(event.user_id)
-                    elif self.params['age'] is None:
-                        self.message_send(
-                        event.user_id, f'Привет, {self.params["name"]}!\n'
-                        f'Укажите свой возраст')
-                        event.to_me = self.data_age(event.user_id)
-                    elif self.params['sex'] is None:
-                        self.message_send(
-                        event.user_id, f'Привет, {self.params["name"]}!\n'
-                        f'Укажите свой пол')
-                        event.to_me = self.data_sex(event.user_id)
-                    else:
-                        self.message_send(event.user_id, f'Привет {self.params["name"]}')
+                    self.message_send(event.user_id, f'Привет {self.params["name"]}')
                 elif event.text.lower() == 'поиск':
                     self.message_send(
                         event.user_id, 'Начинаем поиск')
