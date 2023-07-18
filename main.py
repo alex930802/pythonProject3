@@ -53,6 +53,7 @@ class Vkinderinterface():
                 return name_city['items'][0]
         except ApiError as e:
             print(f'error = {e}')
+
     def data_city(self, user_id):
         if params['city'] is None:
             self.message_send(user_id, 'Введите город: ')
